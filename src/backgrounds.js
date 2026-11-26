@@ -3,6 +3,9 @@ export const W = 1280;
 export const H = 720;
 export const GROUND_Y = 540; // ここから下が道（画面の下 1/4）
 
+// 友達の背景画像を images/bg/ に入れたら、ここにファイル名（.png なし）を足す。例：'bamboo_day'
+export const READY_BG = [];
+
 const OUT = 0x3a2416; // キャラと同じ焦げ茶の線
 
 export const STAGES = [

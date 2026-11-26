@@ -18,7 +18,7 @@ export class MenuScene extends Phaser.Scene {
     text(this, W - 24, 22, `小判 ${this.save.coins}`, 26, '#ffffff', { stroke: INK, strokeThickness: 6 }).setOrigin(1, 0);
 
     // ステージ
-    text(this, 24, 78, 'ステージをえらぶ', 24, INK);
+    text(this, 24, 78, 'ステージをえらぶ（押すとバトル開始）', 24, INK);
     BATTLE_STAGES.forEach((sd, i) => {
       const unlocked = i === 0 || this.save.cleared.includes(i - 1);
       const done = this.save.cleared.includes(i);
