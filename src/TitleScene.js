@@ -1,4 +1,4 @@
-import { W, H, STAGES, drawStage, GROUND_Y, READY_BG } from './backgrounds.js';
+import { W, H, STAGES, stageBg, GROUND_Y, BG_FILES } from './backgrounds.js';
 import { TITLE, SUBTITLE } from './data.js';
 import { text, button, INK } from './ui.js';
 import { loadSave } from './save.js';
@@ -10,7 +10,7 @@ export class TitleScene extends Phaser.Scene {
 
   create() {
     this.going = false;
-    drawStage(this, STAGES[3], true);
+    stageBg(this, STAGES[3], true);
     const cast = ['kohaku', 'hakua', 'gekomaru', 'kodama', 'sinonome', 'kuroro'];
     cast.forEach((k, i) => {
       const img = this.add.image(260 + i * 160, GROUND_Y + 90, k).setOrigin(0.5, 1);
@@ -51,7 +51,7 @@ export class BootScene extends Phaser.Scene {
       'zako_ghost', 'zako_lantern', 'oni_mask', 'kasa', 'boss1', 'fox', 'tanuki', 'boss2', 'red_oni', 'big_tanuki', 'boss3',
     ];
     for (const k of sprites) this.load.image(k, `images/sprites/${k}.png`);
-    for (const k of READY_BG) this.load.image(k, `images/bg/${k}.png`);
+    for (const [k, file] of Object.entries(BG_FILES)) this.load.image(k, `images/bg/${file}`);
   }
 
   create() {

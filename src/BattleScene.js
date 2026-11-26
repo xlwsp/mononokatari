@@ -1,4 +1,4 @@
-import { W, H, STAGES, drawStage, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
+import { W, H, STAGES, stageBg, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
 import { UNITS, ENEMIES, BATTLE_STAGES, RULES } from './data.js';
 import { Unit, LANE_Y } from './Unit.js';
 import { loadSave, writeSave, addUnit } from './save.js';
@@ -40,8 +40,8 @@ export class BattleScene extends Phaser.Scene {
 
     // 背景（昼と夜を重ねて、夜の透明度で切り替える）
     const stage = STAGES.find((s) => s.key === sd.bg);
-    this.dayBg = this.makeBg(stage, false).setDepth(0);
-    this.nightBg = this.makeBg(stage, true).setDepth(0).setAlpha(0);
+    this.dayBg = stageBg(this, stage, false).setDepth(0);
+    this.nightBg = stageBg(this, stage, true).setDepth(0).setAlpha(0);
 
     // 陣地
     this.enemyBase = this.makeBase(drawEnemyBase(this, ENEMY_BASE_X), ENEMY_BASE_X, sd.baseHp, 'enemy');
@@ -50,12 +50,6 @@ export class BattleScene extends Phaser.Scene {
     this.makeUI();
     this.banner(`${sd.name}`, 'たたかい開始！');
     if (sd.tutorial) this.setupTutorial();
-  }
-
-  makeBg(stage, night) {
-    const key = `${stage.key}_${night ? 'night' : 'day'}`;
-    if (this.textures.exists(key)) return this.add.image(W / 2, H / 2, key).setDisplaySize(W, H);
-    return drawStage(this, stage, night);
   }
 
   makeBase(gfx, x, hp, side) {

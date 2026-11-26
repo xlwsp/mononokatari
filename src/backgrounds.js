@@ -3,8 +3,20 @@ export const W = 1280;
 export const H = 720;
 export const GROUND_Y = 540; // ここから下が道（画面の下 1/4）
 
-// 友達の背景画像を images/bg/ に入れたら、ここにファイル名（.png なし）を足す。例：'bamboo_day'
-export const READY_BG = [];
+// 背景画像（images/bg/）。ここに無いものは図形の仮背景で描く
+export const BG_FILES = {
+  bamboo_day: 'bg01.jpeg', bamboo_night: 'bg02.jpeg',
+  riverside_day: 'bg03.jpeg', riverside_night: 'bg04.jpeg',
+  temple_day: 'bg05.jpeg', temple_night: 'bg06.jpeg',
+  festival_day: 'bg07.jpeg', festival_night: 'bg08.jpeg',
+};
+
+/** 背景を置く：画像があれば画像、無ければ図形 */
+export function stageBg(scene, stage, night) {
+  const key = `${stage.key}_${night ? 'night' : 'day'}`;
+  if (scene.textures.exists(key)) return scene.add.image(W / 2, H / 2, key).setDisplaySize(W, H);
+  return drawStage(scene, stage, night);
+}
 
 const OUT = 0x3a2416; // キャラと同じ焦げ茶の線
 

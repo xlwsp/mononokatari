@@ -1,4 +1,4 @@
-import { W, STAGES, drawStage } from './backgrounds.js';
+import { W, STAGES, stageBg } from './backgrounds.js';
 import { UNITS, BATTLE_STAGES, TITLE, SUBTITLE, SHOP_PRICES } from './data.js';
 import { loadSave, writeSave, addUnit, exportCode, importCode, resetSave } from './save.js';
 import { text, button, INK } from './ui.js';
@@ -13,7 +13,7 @@ export class MenuScene extends Phaser.Scene {
 
   create() {
     this.save = loadSave();
-    drawStage(this, STAGES[0], false);
+    stageBg(this, STAGES[0], false);
     this.add.rectangle(W / 2, 360, W, 720, 0xfff4dc, 0.35);
 
     text(this, 24, 16, `${TITLE} ${SUBTITLE}`, 32, '#ffffff', { stroke: INK, strokeThickness: 7 });

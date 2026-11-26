@@ -1,4 +1,4 @@
-import { W, H, GROUND_Y, STAGES, drawStage, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
+import { W, H, GROUND_Y, STAGES, stageBg, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
 
 // 背景の確認用画面：ステージ切り替え・昼夜切り替え・自動切り替え（なめらかに変わる）
 const PLAYERS = ['hakua', 'kodama', 'suzune', 'gekomaru'];
@@ -26,18 +26,12 @@ export class PreviewScene extends Phaser.Scene {
     this.showStage(Math.min(Number(q.get('stage')) || 0, STAGES.length - 1));
   }
 
-  bgObject(stage, night) {
-    const key = `${stage.key}_${night ? 'night' : 'day'}`;
-    if (this.textures.exists(key)) return this.add.image(W / 2, H / 2, key).setDisplaySize(W, H);
-    return drawStage(this, stage, night);
-  }
-
   showStage(i) {
     this.stageIndex = i;
     this.bgLayer.removeAll(true);
     const stage = STAGES[i];
-    this.dayBg = this.bgObject(stage, false);
-    this.nightBg = this.bgObject(stage, true);
+    this.dayBg = stageBg(this, stage, false);
+    this.nightBg = stageBg(this, stage, true);
     this.bgLayer.add([this.dayBg, this.nightBg]);
     this.nightBg.setAlpha(this.night ? 1 : 0);
     this.refreshLabels();
@@ -81,7 +75,7 @@ export class PreviewScene extends Phaser.Scene {
       this.refreshLabels();
     });
     btn(940, 'もどる', () => this.scene.start('menu'));
-    this.add.text(W - 20, 30, '仮の背景（図形）', { fontSize: '18px', color: '#ffffff', stroke: '#3a2416', strokeThickness: 4 }).setOrigin(1, 0);
+    this.add.text(W - 20, 30, '背景の確認', { fontSize: '18px', color: '#ffffff', stroke: '#3a2416', strokeThickness: 4 }).setOrigin(1, 0);
   }
 
   refreshLabels() {
