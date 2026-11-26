@@ -1,7 +1,7 @@
 import { W, H, STAGES, drawStage, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
 import { UNITS, ENEMIES, BATTLE_STAGES, RULES } from './data.js';
 import { Unit, LANE_Y } from './Unit.js';
-import { loadSave, writeSave } from './save.js';
+import { loadSave, writeSave, addUnit } from './save.js';
 import { text, button, FONT, INK } from './ui.js';
 
 const ENEMY_BASE_X = 110;
@@ -26,10 +26,11 @@ export class BattleScene extends Phaser.Scene {
     this.over = false;
     this.speed = 1;
     this.night = false;
-    this.dayTimer = RULES.dayNightSeconds;
+    this.dayTimer = sd.tutorial ? 40 : RULES.dayNightSeconds;
     this.money = 0;
     this.walletLv = 1;
-    this.cannon = 0;
+    this.summoned = 0;
+    this.dayLen = sd.tutorial ? 40 : RULES.dayNightSeconds;
     this.players = [];
     this.enemies = [];
     this.spawnNext = sd.spawns.map((s) => s.start);
@@ -48,6 +49,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.makeUI();
     this.banner(`${sd.name}`, 'たたかい開始！');
+    if (sd.tutorial) this.setupTutorial();
   }
 
   makeBg(stage, night) {
@@ -68,7 +70,7 @@ export class BattleScene extends Phaser.Scene {
       side,
       takeDamage: (dmg) => {
         if (this.over) return;
-        base.hp = Math.max(0, base.hp - dmg);
+        base.hp = Math.max(0, base.hp - dmg * RULES.baseDamage);
         gfx.x = Phaser.Math.Between(-4, 4);
         this.time.delayedCall(60, () => (gfx.x = 0));
         if (base.hp <= 0) this.finish(side === 'enemy');
@@ -88,8 +90,6 @@ export class BattleScene extends Phaser.Scene {
 
     // 財布
     this.walletBtn = button(this, 95, 674, 170, 80, '', () => this.upgradeWallet(), { size: 20 }).setDepth(D + 1);
-    // 大砲
-    this.cannonBtn = button(this, 1185, 674, 170, 80, '', () => this.fireCannon(), { size: 22 }).setDepth(D + 1);
 
     // 召喚ボタン
     this.slots = this.team.map((key, i) => this.makeSlot(key, 335 + i * 152, 674));
@@ -138,6 +138,7 @@ export class BattleScene extends Phaser.Scene {
   summon(slot) {
     if (this.over || slot.cd > 0 || this.money < slot.def.cost) return;
     this.money -= slot.def.cost;
+    this.summoned++;
     slot.cd = RULES.cooldown(slot.def.cost);
     this.tweens.add({ targets: slot.c, scale: 0.92, duration: 60, yoyo: true });
     this.players.push(new Unit(this, slot.key, slot.def, 'player', PLAYER_BASE_X - 60));
@@ -152,23 +153,6 @@ export class BattleScene extends Phaser.Scene {
     this.walletLv++;
   }
 
-  fireCannon() {
-    if (this.over || this.cannon < 1) return;
-    this.cannon = 0;
-    const wave = this.add.rectangle(PLAYER_BASE_X - 80, LANE_Y - 60, 60, 160, 0xfff2b0, 0.8).setDepth(150);
-    this.tweens.add({ targets: wave, x: ENEMY_BASE_X + 60, duration: 600, ease: 'Quad.easeIn', onComplete: () => wave.destroy() });
-    this.cameras.main.shake(250, 0.006);
-    for (const e of this.enemies) {
-      if (!e.alive) continue;
-      const delay = ((PLAYER_BASE_X - e.x) / (PLAYER_BASE_X - ENEMY_BASE_X)) * 600;
-      this.time.delayedCall(delay, () => {
-        if (!e.alive) return;
-        e.takeDamage(RULES.cannonDamage);
-        if (e.alive && !e.def.boss) e.knockback(1.5);
-      });
-    }
-  }
-
   toggleSpeed() {
     this.speed = this.speed === 1 ? 2 : 1;
     this.tweens.timeScale = this.speed;
@@ -179,7 +163,7 @@ export class BattleScene extends Phaser.Scene {
   setNight(night, reason) {
     const changed = this.night !== night;
     this.night = night;
-    this.dayTimer = RULES.dayNightSeconds; // 切り替わったらそこから数え直し
+    this.dayTimer = this.dayLen; // 切り替わったらそこから数え直し
     this.tweens.add({ targets: this.nightBg, alpha: night ? 1 : 0, duration: 1200 });
     if (changed || reason) this.banner(night ? '🌙 夜になった' : '☀ 昼になった', reason ?? (night ? '夜型の妖怪が強くなる' : '昼型の妖怪が強くなる'));
   }
@@ -221,7 +205,6 @@ export class BattleScene extends Phaser.Scene {
     // 妖力
     const w = RULES.wallet(this.walletLv);
     this.money = Math.min(w.max, this.money + w.rate * dt);
-    this.cannon = Math.min(1, this.cannon + dt / RULES.cannonCharge);
 
     // 昼夜
     this.dayTimer -= dt;
@@ -229,6 +212,7 @@ export class BattleScene extends Phaser.Scene {
 
     // 敵の出現
     this.spawnEnemies();
+    if (this.tut) this.updateTutorial(dt);
 
     // 妖怪の動き
     const mult = (def) => {
@@ -253,7 +237,7 @@ export class BattleScene extends Phaser.Scene {
 
   spawnEnemies() {
     const sd = this.stageDef;
-    const cap = 22;
+    const cap = 15;
     sd.spawns.forEach((s, i) => {
       if (this.elapsed >= this.spawnNext[i]) {
         // 時間がたつほど少しずつ間隔が短くなる
@@ -262,7 +246,7 @@ export class BattleScene extends Phaser.Scene {
         if (this.enemies.length < cap) this.spawnEnemy(s.key);
       }
     });
-    if (!this.bossSpawned && this.enemyBase.hp / this.enemyBase.maxHp <= sd.bossAt) {
+    if (sd.boss && !this.bossSpawned && this.enemyBase.hp / this.enemyBase.maxHp <= sd.bossAt) {
       this.bossSpawned = true;
       this.spawnEnemy(sd.boss);
       this.banner(`${ENEMIES[sd.boss].name} 出現！`, '敵陣から強い妖怪が出てきた');
@@ -280,15 +264,65 @@ export class BattleScene extends Phaser.Scene {
     const maxed = this.walletLv >= RULES.walletMax;
     this.walletBtn.setLabel(maxed ? `財布 Lv${this.walletLv}\nMAX` : `財布 Lv${this.walletLv}\n強化 ${w.next}`);
     this.walletBtn.setEnabled(!maxed && this.money >= w.next);
-    const ready = this.cannon >= 1;
-    this.cannonBtn.setLabel(ready ? '大砲\n発射！' : `大砲\n${Math.floor(this.cannon * 100)}%`);
-    this.cannonBtn.setFill(ready ? 0xffc94a : 0xfff4dc);
-    this.cannonBtn.setEnabled(ready);
     this.dayText.setText(`${this.night ? '🌙 夜' : '☀ 昼'}　あと${Math.ceil(this.dayTimer)}秒`);
     const left = Math.max(0, RULES.timeLimit - this.elapsed);
     this.timeText.setText(`残り ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`);
     for (const b of [this.enemyBase, this.playerBase]) b.label.setText(`${Math.ceil(b.hp)} / ${b.maxHp}`);
     for (const s of this.slots) this.drawSlot(s);
+  }
+
+  // ---------- チュートリアル ----------
+  setupTutorial() {
+    const name = (i) => UNITS[this.team[i]]?.name;
+    const slotPos = (i) => ({ x: this.slots[i].c.x, y: 590 });
+    const steps = [
+      { msg: '左上の「妖力」が時間でたまっていくよ', at: { x: 150, y: 110, up: true }, done: () => this.money >= UNITS[this.team[0]].cost },
+      { msg: `${name(0)}のボタンを押して召喚しよう！`, at: slotPos(0), done: () => this.summoned >= 1 },
+      { msg: '妖怪は自分で前に進んで、敵と戦うよ', wait: 5 },
+    ];
+    if (this.team[1]) steps.push({ msg: `${name(1)}も出してみよう！`, at: slotPos(1), done: () => this.summoned >= 2 });
+    steps.push(
+      { msg: '「財布」を強化すると妖力が早くたまるよ', at: { x: 95, y: 590 }, done: () => this.walletLv >= 2, giveUp: 20 },
+      { msg: '左の敵陣のHPを0にしたら勝ち！', at: { x: 110, y: 300 }, wait: 6 },
+      { msg: '☀は昼に強い、🌙は夜に強い妖怪。\n強い時間はボタンが金色に光るよ', at: { x: W / 2, y: 110, up: true }, wait: 8 },
+      { msg: 'その調子！敵陣をたおそう', wait: 4 },
+    );
+    const box = this.add.container(0, 0).setDepth(450);
+    const bg = this.add.graphics();
+    const msg = text(this, W / 2, 175, '', 28, INK, { align: 'center' }).setOrigin(0.5);
+    const hand = text(this, 0, 0, '', 56).setOrigin(0.5);
+    box.add([bg, msg, hand]);
+    this.tweens.add({ targets: hand, scale: 1.25, duration: 400, yoyo: true, repeat: -1 });
+    this.tut = { steps, i: -1, t: 0, box, bg, msg, hand };
+    this.nextTutorial();
+  }
+
+  nextTutorial() {
+    const tut = this.tut;
+    tut.i++;
+    tut.t = 0;
+    const step = tut.steps[tut.i];
+    if (!step) {
+      tut.box.setVisible(false);
+      return;
+    }
+    tut.msg.setText(step.msg);
+    const w = tut.msg.width + 60;
+    const h = tut.msg.height + 30;
+    tut.bg.clear();
+    tut.bg.fillStyle(0x3a2416, 1).fillRoundedRect(W / 2 - w / 2 - 4, 175 - h / 2 - 4, w + 8, h + 8, 18);
+    tut.bg.fillStyle(0xfffaf0, 1).fillRoundedRect(W / 2 - w / 2, 175 - h / 2, w, h, 16);
+    tut.hand.setVisible(!!step.at);
+    if (step.at) tut.hand.setText(step.at.up ? '👆' : '👇').setPosition(step.at.x, step.at.y);
+  }
+
+  updateTutorial(dt) {
+    const tut = this.tut;
+    const step = tut.steps[tut.i];
+    if (!step) return;
+    tut.t += dt;
+    const ok = step.done ? step.done() || (step.giveUp && tut.t >= step.giveUp) : tut.t >= step.wait;
+    if (ok) this.nextTutorial();
   }
 
   // ---------- 終わり ----------
@@ -300,17 +334,25 @@ export class BattleScene extends Phaser.Scene {
     const reward = win ? this.stageDef.reward : Math.floor(this.stageDef.reward * 0.2);
     save.coins += reward;
     if (win && !save.cleared.includes(this.stageIndex)) save.cleared.push(this.stageIndex);
+    const newUnit = win && this.stageDef.unlock && addUnit(save, this.stageDef.unlock) ? this.stageDef.unlock : null;
     writeSave(save);
+    this.tut?.box.destroy();
 
     const D = 500;
     this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55).setDepth(D).setInteractive();
     const box = this.add.graphics().setDepth(D);
-    box.fillStyle(0x3a2416, 1).fillRoundedRect(W / 2 - 304, 154, 608, 412, 24);
-    box.fillStyle(0xfff4dc, 1).fillRoundedRect(W / 2 - 300, 158, 600, 404, 22);
-    text(this, W / 2, 230, win ? '勝利！' : '敗北…', 72, win ? '#d9412b' : '#4a4a6a', { fontStyle: 'bold' }).setOrigin(0.5).setDepth(D);
-    text(this, W / 2, 310, reason, 24).setOrigin(0.5).setDepth(D);
-    text(this, W / 2, 360, `小判 +${reward}（所持 ${save.coins}）`, 30).setOrigin(0.5).setDepth(D);
-    button(this, W / 2 - 140, 470, 240, 76, 'もう一度', () => this.scene.restart({ stage: this.stageIndex, team: this.team })).setDepth(D);
-    button(this, W / 2 + 140, 470, 240, 76, 'ステージ選択', () => this.scene.start('menu'), { size: 24 }).setDepth(D);
+    box.fillStyle(0x3a2416, 1).fillRoundedRect(W / 2 - 304, 124, 608, 482, 24);
+    box.fillStyle(0xfff4dc, 1).fillRoundedRect(W / 2 - 300, 128, 600, 474, 22);
+    text(this, W / 2, 200, win ? '勝利！' : '敗北…', 72, win ? '#d9412b' : '#4a4a6a', { fontStyle: 'bold' }).setOrigin(0.5).setDepth(D);
+    text(this, W / 2, 265, reason, 24).setOrigin(0.5).setDepth(D);
+    text(this, W / 2, 310, `小判 +${reward}（所持 ${save.coins}）`, 30).setOrigin(0.5).setDepth(D);
+    if (newUnit) {
+      const icon = this.add.image(W / 2 - 150, 390, newUnit).setDepth(D);
+      icon.setScale(80 / icon.height);
+      this.tweens.add({ targets: icon, y: 380, duration: 400, yoyo: true, repeat: -1 });
+      text(this, W / 2 - 90, 390, `新しい仲間：${UNITS[newUnit].name}！`, 30, '#d9412b', { fontStyle: 'bold' }).setOrigin(0, 0.5).setDepth(D);
+    }
+    button(this, W / 2 - 140, 520, 240, 76, 'もう一度', () => this.scene.restart({ stage: this.stageIndex, team: this.team })).setDepth(D);
+    button(this, W / 2 + 140, 520, 240, 76, 'ステージ選択', () => this.scene.start('menu'), { size: 24 }).setDepth(D);
   }
 }

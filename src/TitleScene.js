@@ -1,6 +1,7 @@
 import { W, H, STAGES, drawStage, GROUND_Y, READY_BG } from './backgrounds.js';
 import { TITLE, SUBTITLE } from './data.js';
 import { text, button, INK } from './ui.js';
+import { loadSave } from './save.js';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -30,7 +31,10 @@ export class TitleScene extends Phaser.Scene {
       if (!this.scale.isFullscreen && this.sys.game.device.input.touch && this.scale.fullscreen.available) this.scale.startFullscreen();
       screen.orientation?.lock?.('landscape').catch(() => {});
     } catch {}
-    this.scene.start('menu');
+    // はじめての人はチュートリアルへ
+    const save = loadSave();
+    if (!save.cleared.includes(0)) this.scene.start('battle', { stage: 0, team: save.team });
+    else this.scene.start('menu');
   }
 }
 
@@ -53,7 +57,7 @@ export class BootScene extends Phaser.Scene {
   create() {
     // 確認用：?battle=0 でステージ1にすぐ入る（&auto=1 で自動召喚）
     const q = new URLSearchParams(location.search);
-    if (q.has('battle')) this.scene.start('battle', { stage: Number(q.get('battle')) || 0, team: ['suzune', 'hakua', 'maimai', 'rangyo', 'kohaku'], auto: q.get('auto') === '1' });
+    if (q.has('battle')) this.scene.start('battle', { stage: Number(q.get('battle')) || 0, team: (q.get('team') || 'suzune,hakua').split(','), auto: q.get('auto') === '1' });
     else this.scene.start('title');
   }
 }

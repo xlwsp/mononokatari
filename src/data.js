@@ -23,68 +23,74 @@ export const UNITS = {
 };
 
 export const ENEMIES = {
-  zako_ghost: { name: '傘幽霊', hp: 110, atk: 12, range: 40, rate: 1.0, speed: 40, kb: 1, time: 'night', float: true, reward: 15, size: 80 },
-  zako_lantern: { name: '提灯', hp: 150, atk: 15, range: 40, rate: 1.2, speed: 34, kb: 1, time: 'night', float: true, reward: 20, size: 85 },
-  oni_mask: { name: '鬼面', hp: 320, atk: 34, range: 50, rate: 1.2, speed: 40, kb: 2, time: 'night', reward: 45 },
-  kasa: { name: 'からかさ', hp: 170, atk: 24, range: 45, rate: 0.8, speed: 95, kb: 2, time: null, reward: 35 },
-  boss1: { name: '大提灯', hp: 2600, atk: 75, range: 90, rate: 2.0, speed: 20, kb: 5, time: 'night', area: true, float: true, reward: 300, size: 170, boss: true },
-  fox: { name: '狐', hp: 360, atk: 48, range: 130, rate: 1.6, speed: 50, kb: 2, time: 'night', reward: 60 },
-  tanuki: { name: '狸', hp: 950, atk: 24, range: 45, rate: 1.5, speed: 26, kb: 3, time: null, reward: 70, size: 110 },
-  boss2: { name: '大蛇', hp: 5200, atk: 110, range: 120, rate: 2.0, speed: 18, kb: 5, time: 'night', area: true, reward: 500, size: 190, boss: true },
-  red_oni: { name: '赤鬼', hp: 1600, atk: 100, range: 70, rate: 1.8, speed: 26, kb: 3, time: 'night', area: true, reward: 150, size: 140 },
-  big_tanuki: { name: '大狸', hp: 2100, atk: 48, range: 50, rate: 1.6, speed: 22, kb: 3, time: null, reward: 150, size: 140 },
-  boss3: { name: '獅子', hp: 9000, atk: 170, range: 110, rate: 2.0, speed: 20, kb: 6, time: 'night', area: true, reward: 800, size: 200, boss: true },
+  zako_ghost: { name: '傘幽霊', hp: 90, atk: 8, range: 40, rate: 1.1, speed: 36, kb: 1, time: 'night', float: true, reward: 20, size: 80 },
+  zako_lantern: { name: '提灯', hp: 120, atk: 10, range: 40, rate: 1.3, speed: 32, kb: 1, time: 'night', float: true, reward: 25, size: 85 },
+  oni_mask: { name: '鬼面', hp: 260, atk: 24, range: 50, rate: 1.3, speed: 36, kb: 2, time: 'night', reward: 50 },
+  kasa: { name: 'からかさ', hp: 140, atk: 16, range: 45, rate: 0.9, speed: 85, kb: 2, time: null, reward: 40 },
+  boss1: { name: '大提灯', hp: 1600, atk: 45, range: 90, rate: 2.2, speed: 18, kb: 5, time: 'night', area: true, float: true, reward: 300, size: 170, boss: true },
+  fox: { name: '狐', hp: 260, atk: 24, range: 100, rate: 1.7, speed: 46, kb: 2, time: 'night', reward: 65 },
+  tanuki: { name: '狸', hp: 750, atk: 16, range: 45, rate: 1.6, speed: 24, kb: 3, time: null, reward: 75, size: 110 },
+  boss2: { name: '大蛇', hp: 2000, atk: 45, range: 120, rate: 2.2, speed: 16, kb: 5, time: 'night', area: true, reward: 500, size: 190, boss: true },
+  red_oni: { name: '赤鬼', hp: 1200, atk: 65, range: 70, rate: 1.9, speed: 24, kb: 3, time: 'night', area: true, reward: 160, size: 140 },
+  big_tanuki: { name: '大狸', hp: 1600, atk: 32, range: 50, rate: 1.7, speed: 20, kb: 3, time: null, reward: 160, size: 140 },
+  boss3: { name: '獅子', hp: 4500, atk: 70, range: 110, rate: 2.2, speed: 18, kb: 6, time: 'night', area: true, reward: 800, size: 200, boss: true },
 };
 
-// spawns: start 秒から every 秒ごとに出る（from〜until はステージ経過秒）
+// spawns: start 秒から every 秒ごとに出る
 // boss: 敵陣のHPが bossAt 以下になったら1回だけ出る
+// unlock: クリアすると仲間になる妖怪
 export const BATTLE_STAGES = [
   {
-    name: '竹やぶ', bg: 'bamboo', baseHp: 1800, reward: 100,
-    spawns: [
-      { key: 'zako_ghost', start: 2, every: 6 },
-      { key: 'zako_lantern', start: 15, every: 9 },
-      { key: 'kasa', start: 40, every: 18 },
-      { key: 'oni_mask', start: 70, every: 22 },
-    ],
-    boss: 'boss1', bossAt: 0.6,
+    name: 'はじめての戦い', bg: 'bamboo', baseHp: 500, reward: 50, tutorial: true, unlock: 'maimai',
+    spawns: [{ key: 'zako_ghost', start: 14, every: 11 }],
   },
   {
-    name: '川辺の村', bg: 'riverside', baseHp: 3000, reward: 200,
+    name: '竹やぶ', bg: 'bamboo', baseHp: 2500, reward: 150, unlock: 'rangyo',
     spawns: [
-      { key: 'zako_ghost', start: 2, every: 6 },
-      { key: 'zako_lantern', start: 8, every: 9 },
-      { key: 'kasa', start: 25, every: 16 },
-      { key: 'fox', start: 40, every: 20 },
-      { key: 'tanuki', start: 60, every: 28 },
+      { key: 'zako_ghost', start: 3, every: 8 },
+      { key: 'zako_lantern', start: 20, every: 12 },
+      { key: 'kasa', start: 60, every: 25 },
+      { key: 'oni_mask', start: 90, every: 30 },
     ],
-    boss: 'boss2', bossAt: 0.6,
+    boss: 'boss1', bossAt: 0.5,
   },
   {
-    name: '山寺', bg: 'temple', baseHp: 4500, reward: 350,
+    name: '川辺の村', bg: 'riverside', baseHp: 4000, reward: 250, unlock: 'kohaku',
     spawns: [
-      { key: 'zako_lantern', start: 2, every: 6 },
-      { key: 'oni_mask', start: 12, every: 13 },
-      { key: 'fox', start: 25, every: 16 },
-      { key: 'tanuki', start: 40, every: 24 },
-      { key: 'red_oni', start: 90, every: 40 },
-      { key: 'big_tanuki', start: 120, every: 45 },
+      { key: 'zako_ghost', start: 3, every: 7 },
+      { key: 'zako_lantern', start: 10, every: 11 },
+      { key: 'kasa', start: 30, every: 20 },
+      { key: 'fox', start: 50, every: 30 },
+      { key: 'tanuki', start: 75, every: 32 },
     ],
-    boss: 'boss3', bossAt: 0.6,
+    boss: 'boss2', bossAt: 0.5,
+  },
+  {
+    name: '山寺', bg: 'temple', baseHp: 5500, reward: 400, unlock: 'gekomaru',
+    spawns: [
+      { key: 'zako_lantern', start: 3, every: 7 },
+      { key: 'oni_mask', start: 15, every: 15 },
+      { key: 'fox', start: 30, every: 18 },
+      { key: 'tanuki', start: 45, every: 26 },
+      { key: 'red_oni', start: 100, every: 45 },
+      { key: 'big_tanuki', start: 130, every: 50 },
+    ],
+    boss: 'boss3', bossAt: 0.5,
   },
 ];
 
+// 最初からいる仲間。ほかはステージクリア（BATTLE_STAGES の unlock）か小判で仲間にする
+export const STARTER_UNITS = ['suzune', 'hakua'];
+export const SHOP_PRICES = { kodama: 150, uroko: 300, kuroro: 350, komori: 400, sinonome: 450, nejimaru: 600 };
+
 export const RULES = {
-  playerBaseHp: 2500,
+  playerBaseHp: 3000,
+  baseDamage: 0.5, // 陣地へのダメージは半分（陣地は固い）
   timeLimit: 300, // 5分
   dayNightSeconds: 60, // 昼夜が入れ替わる間隔
-  favored: { atk: 1.3, speed: 1.15 }, // 得意な時間帯
-  unfavored: { atk: 0.85, speed: 0.95 }, // 苦手な時間帯
-  cannonCharge: 22, // 大砲がたまるまでの秒
-  cannonDamage: 160,
-  wallet: (lv) => ({ max: 400 + 200 * (lv - 1), rate: 14 + 6 * (lv - 1), next: 60 * lv }),
+  favored: { atk: 1.2, speed: 1.1 }, // 得意な時間帯
+  unfavored: { atk: 0.9, speed: 1 }, // 苦手な時間帯
+  wallet: (lv) => ({ max: 500 + 250 * (lv - 1), rate: 20 + 7 * (lv - 1), next: 60 * lv }),
   walletMax: 8,
   cooldown: (cost) => 2 + cost / 70, // 再召喚までの秒
 };
-
-export const DEFAULT_TEAM = ['suzune', 'hakua', 'maimai', 'rangyo', 'kohaku'];
