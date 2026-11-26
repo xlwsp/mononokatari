@@ -1,6 +1,6 @@
 import { W, STAGES, drawStage } from './backgrounds.js';
 import { UNITS, BATTLE_STAGES, TITLE, SUBTITLE, SHOP_PRICES } from './data.js';
-import { loadSave, writeSave, addUnit } from './save.js';
+import { loadSave, writeSave, addUnit, exportCode, importCode, resetSave } from './save.js';
 import { text, button, INK } from './ui.js';
 
 const INK_HEX = 0x3a2416;
@@ -36,6 +36,74 @@ export class MenuScene extends Phaser.Scene {
     this.refresh();
 
     button(this, W - 110, 690, 190, 46, '背景を見る', () => this.scene.start('preview'), { size: 18 });
+    button(this, 110, 690, 190, 46, '💾 セーブ', () => this.openSavePanel(), { size: 20 });
+  }
+
+  // ---------- セーブ画面 ----------
+  openSavePanel() {
+    const D = 500;
+    const parts = [];
+    const add = (o) => (parts.push(o.setDepth(D)), o);
+    const close = () => parts.forEach((p) => p.destroy());
+    add(this.add.rectangle(W / 2, 360, W, 720, 0x000000, 0.55).setInteractive());
+    const g = add(this.add.graphics());
+    g.fillStyle(INK_HEX, 1).fillRoundedRect(W / 2 - 364, 64, 728, 592, 24);
+    g.fillStyle(0xfff4dc, 1).fillRoundedRect(W / 2 - 360, 68, 720, 584, 22);
+    add(text(this, W / 2, 112, '💾 セーブ', 40, INK, { fontStyle: 'bold' }).setOrigin(0.5));
+    add(text(this, W / 2, 168, '進み具合はこの端末に自動で保存されています。\n別の端末で遊ぶときやバックアップには、セーブコードを使ってね。', 20, '#6a4a36', { align: 'center' }).setOrigin(0.5));
+
+    add(button(this, W / 2 - 170, 260, 310, 70, 'セーブコードをコピー', () => this.copyCode(), { size: 22 }));
+    add(button(this, W / 2 + 170, 260, 310, 70, 'セーブコードで読み込む', () => this.loadCode(), { size: 22 }));
+    add(button(this, W / 2 - 170, 350, 310, 70, 'ファイルに保存', () => this.downloadSave(), { size: 22 }));
+    add(button(this, W / 2 + 170, 350, 310, 70, 'ファイルから読み込む', () => this.uploadSave(), { size: 22 }));
+    add(button(this, W / 2, 450, 310, 60, 'はじめからやり直す', () => this.resetAll(), { size: 20, color: '#d9412b' }));
+    this.saveMsg = add(text(this, W / 2, 525, '', 22, '#d9412b').setOrigin(0.5));
+    add(button(this, W / 2, 595, 220, 64, '閉じる', close, { size: 24 }));
+  }
+
+  copyCode() {
+    const code = exportCode(this.save);
+    const done = () => this.saveMsg.setText('コピーしたよ！メモ帳などに貼って残してね');
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(code).then(done, () => window.prompt('このコードをコピーしてね', code));
+    else window.prompt('このコードをコピーしてね', code);
+  }
+
+  loadCode() {
+    const code = window.prompt('セーブコードを貼りつけてね（今のデータは上書きされます）');
+    if (!code) return;
+    this.applyLoaded(importCode(code));
+  }
+
+  applyLoaded(save) {
+    if (!save) return this.saveMsg.setText('コードが正しくないみたい…');
+    this.scene.restart();
+  }
+
+  downloadSave() {
+    const blob = new Blob([exportCode(this.save)], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `mononokatari_save_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    this.saveMsg.setText('ファイルに保存したよ');
+  }
+
+  uploadSave() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,text/plain';
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (file) this.applyLoaded(importCode(await file.text()));
+    };
+    input.click();
+  }
+
+  resetAll() {
+    if (!window.confirm('本当にはじめからやり直す？（小判・仲間・クリアが全部消えます）')) return;
+    resetSave();
+    this.scene.start('title');
   }
 
   makeCell(key, def, x, y) {
