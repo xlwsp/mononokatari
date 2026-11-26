@@ -24,7 +24,9 @@ export class Unit {
     this.sprite = scene.add.image(x, this.y, key).setOrigin(0.5, 1).setDepth(10 + this.y / 10);
     const size = def.size ?? 95;
     this.baseScale = size / this.sprite.height;
-    this.sprite.setScale(this.baseScale);
+    this.sprite.setScale(this.baseScale).setFlipX(!!def.flip);
+    this.baseTint = def.flip ? 0xc9a8ff : null; // ランク戦の相手は紫っぽく
+    if (this.baseTint) this.sprite.setTint(this.baseTint);
     this.halfW = this.sprite.displayWidth * 0.32;
 
     if (def.boss) {
@@ -110,7 +112,7 @@ export class Unit {
     if (this.dead) return;
     this.hp -= dmg;
     this.sprite.setTint(0xff9090);
-    this.scene.time.delayedCall(90, () => this.sprite?.clearTint());
+    this.scene.time.delayedCall(90, () => (this.baseTint ? this.sprite?.setTint(this.baseTint) : this.sprite?.clearTint()));
     if (this.hp <= 0) {
       this.die(from);
       return;

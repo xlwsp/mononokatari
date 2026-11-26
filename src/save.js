@@ -1,4 +1,5 @@
 import { STARTER_UNITS, UNITS } from './data.js';
+import { newRankData } from './rank.js';
 
 const KEY = 'mononokatari_save_v2';
 
@@ -9,7 +10,8 @@ export function loadSave() {
   } catch {}
   const owned = [...new Set([...STARTER_UNITS, ...(s.owned || [])])].filter((k) => UNITS[k]);
   const team = (s.team || owned).filter((k) => owned.includes(k)).slice(0, 5);
-  return { coins: s.coins || 0, cleared: s.cleared || [], owned, team: team.length ? team : owned.slice(0, 5) };
+  const rank = { ...newRankData(), ...(s.rank || {}) };
+  return { coins: s.coins || 0, cleared: s.cleared || [], owned, team: team.length ? team : owned.slice(0, 5), rank };
 }
 
 export function writeSave(save) {
@@ -28,7 +30,7 @@ export function addUnit(save, key) {
 const CODE_PREFIX = 'MONO1-';
 
 export function exportCode(save) {
-  const data = { c: save.coins, cl: save.cleared, o: save.owned, t: save.team };
+  const data = { c: save.coins, cl: save.cleared, o: save.owned, t: save.team, r: save.rank };
   return CODE_PREFIX + btoa(JSON.stringify(data));
 }
 
@@ -39,7 +41,7 @@ export function importCode(code) {
     if (!raw.startsWith(CODE_PREFIX)) return null;
     const d = JSON.parse(atob(raw.slice(CODE_PREFIX.length)));
     if (typeof d.c !== 'number' || !Array.isArray(d.cl) || !Array.isArray(d.o) || !Array.isArray(d.t)) return null;
-    localStorage.setItem(KEY, JSON.stringify({ coins: d.c, cleared: d.cl, owned: d.o, team: d.t }));
+    localStorage.setItem(KEY, JSON.stringify({ coins: d.c, cleared: d.cl, owned: d.o, team: d.t, rank: d.r }));
     return loadSave();
   } catch {
     return null;

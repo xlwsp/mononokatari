@@ -3,6 +3,8 @@ import { UNITS, ENEMIES, BATTLE_STAGES, RULES } from './data.js';
 import { Unit, LANE_Y } from './Unit.js';
 import { loadSave, writeSave, addUnit } from './save.js';
 import { text, button, FONT, INK } from './ui.js';
+import { tierOf, ratingDelta, aiSkill } from './rank.js';
+import { sendPlayer } from './rankApi.js';
 
 const ENEMY_BASE_X = 110;
 const PLAYER_BASE_X = 1170;
@@ -16,6 +18,8 @@ export class BattleScene extends Phaser.Scene {
   init(data) {
     this.stageIndex = data.stage ?? 0;
     this.stageDef = BATTLE_STAGES[this.stageIndex];
+    this.rank = data.rank ?? null; // ランク戦の相手 { name, rating, team, bg }
+    if (this.rank) this.stageDef = { name: 'ランク戦', bg: this.rank.bg, baseHp: RULES.playerBaseHp, spawns: [] };
     this.team = data.team;
     this.auto = data.auto;
   }
@@ -35,6 +39,8 @@ export class BattleScene extends Phaser.Scene {
     this.enemies = [];
     this.spawnNext = sd.spawns.map((s) => s.start);
     this.bossSpawned = false;
+    this.timeLimit = this.rank ? 240 : RULES.timeLimit;
+    this.ai = this.rank ? { money: 0, walletLv: 1, cds: {}, ptr: 0, think: 2, skill: aiSkill(this.rank.rating) } : null;
     this.tweens.timeScale = 1;
     this.time.timeScale = 1;
 
@@ -48,7 +54,8 @@ export class BattleScene extends Phaser.Scene {
     this.playerBase = this.makeBase(drawPlayerBase(this, PLAYER_BASE_X), PLAYER_BASE_X, RULES.playerBaseHp, 'player');
 
     this.makeUI();
-    this.banner(`${sd.name}`, 'たたかい開始！');
+    if (this.rank) this.banner(`${this.rank.name}（${tierOf(this.rank.rating).name}）`, '⚔ ランク戦 開始！');
+    else this.banner(`${sd.name}`, 'たたかい開始！');
     if (sd.tutorial) this.setupTutorial();
   }
 
@@ -93,7 +100,7 @@ export class BattleScene extends Phaser.Scene {
     this.dayText = text(this, W / 2, 14, '', 26, '#ffffff', { stroke: INK, strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(D);
     this.timeText = text(this, W / 2, 50, '', 20, '#ffffff', { stroke: INK, strokeThickness: 5 }).setOrigin(0.5, 0).setDepth(D);
     this.speedBtn = button(this, 1060, 36, 110, 52, '速さ×1', () => this.toggleSpeed(), { size: 20 }).setDepth(D);
-    button(this, 1200, 36, 130, 52, 'やめる', () => this.scene.start('menu'), { size: 20 }).setDepth(D);
+    button(this, 1200, 36, 130, 52, this.rank ? '降参' : 'やめる', () => (this.rank ? this.finish(false, '降参') : this.scene.start('menu')), { size: 20 }).setDepth(D);
   }
 
   makeSlot(key, x, y) {
@@ -205,7 +212,8 @@ export class BattleScene extends Phaser.Scene {
     if (this.dayTimer <= 0) this.setNight(!this.night);
 
     // 敵の出現
-    this.spawnEnemies();
+    if (this.rank) this.rankAI(dt);
+    else this.spawnEnemies();
     if (this.tut) this.updateTutorial(dt);
 
     // 妖怪の動き
@@ -221,7 +229,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.auto) for (const s of this.slots) this.summon(s);
 
     // 時間切れ
-    if (this.elapsed >= RULES.timeLimit) {
+    if (this.elapsed >= this.timeLimit) {
       const mine = this.playerBase.hp / this.playerBase.maxHp;
       const theirs = this.enemyBase.hp / this.enemyBase.maxHp;
       this.finish(mine > theirs, '時間切れ');
@@ -248,6 +256,45 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // ---------- ランク戦：相手側のAI ----------
+  rankAI(dt) {
+    const ai = this.ai;
+    const w = RULES.wallet(ai.walletLv);
+    ai.money = Math.min(w.max, ai.money + w.rate * dt);
+    for (const k in ai.cds) ai.cds[k] = Math.max(0, ai.cds[k] - dt);
+    ai.think -= dt;
+    if (ai.think > 0) return;
+    ai.think = 2.2 - 1.8 * ai.skill + Math.random() * 0.5; // うまい相手ほど判断が速い
+
+    const target = ai.skill < 0.3 ? 2 : ai.skill < 0.6 ? 3 : ai.skill < 0.85 ? 4 : 5; // うまい相手ほど財布を上げる
+    if (ai.walletLv < target && ai.walletLv < RULES.walletMax && ai.money >= w.next && this.elapsed > 3) {
+      ai.money -= w.next;
+      ai.walletLv++;
+      return;
+    }
+    const team = this.rank.team;
+    const ready = (k) => ai.money >= UNITS[k].cost && !(ai.cds[k] > 0);
+    const favored = (k) => UNITS[k].time && (UNITS[k].time === 'night') === this.night;
+    let key = team[ai.ptr % team.length];
+    // うまい相手は、今の時間帯に強い妖怪を優先する
+    const fav = team.filter((k) => favored(k) && ready(k));
+    if (fav.length && Math.random() < ai.skill) key = fav[Math.floor(Math.random() * fav.length)];
+    const def = UNITS[key];
+    const uselessSkill = (def.skill === 'moon' && this.night) || (def.skill === 'sun' && !this.night);
+    if (ai.cds[key] > 0 || (uselessSkill && Math.random() < ai.skill)) {
+      ai.ptr++;
+      return;
+    }
+    if (ready(key) && this.enemies.length < 15) {
+      ai.money -= def.cost;
+      ai.cds[key] = RULES.cooldown(def.cost);
+      ai.ptr++;
+      this.enemies.push(new Unit(this, key, { ...def, reward: Math.round(def.cost * 0.4), flip: true }, 'enemy', ENEMY_BASE_X + 60));
+      if (def.skill === 'moon') this.setNight(true, `${this.rank.name}の${def.name}が月呼び！`);
+      if (def.skill === 'sun') this.setNight(false, `${this.rank.name}の${def.name}が日招き！`);
+    }
+  }
+
   spawnEnemy(key) {
     this.enemies.push(new Unit(this, key, ENEMIES[key], 'enemy', ENEMY_BASE_X + 60));
   }
@@ -259,9 +306,10 @@ export class BattleScene extends Phaser.Scene {
     this.walletBtn.setLabel(maxed ? `財布 Lv${this.walletLv}\nMAX` : `財布 Lv${this.walletLv}\n強化 ${w.next}`);
     this.walletBtn.setEnabled(!maxed && this.money >= w.next);
     this.dayText.setText(`${this.night ? '🌙 夜' : '☀ 昼'}　あと${Math.ceil(this.dayTimer)}秒`);
-    const left = Math.max(0, RULES.timeLimit - this.elapsed);
+    const left = Math.max(0, this.timeLimit - this.elapsed);
     this.timeText.setText(`残り ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`);
     for (const b of [this.enemyBase, this.playerBase]) b.label.setText(`${Math.ceil(b.hp)} / ${b.maxHp}`);
+    if (this.rank) this.enemyBase.label.setText(`${this.rank.name}\n${Math.ceil(this.enemyBase.hp)} / ${this.enemyBase.maxHp}`);
     for (const s of this.slots) this.drawSlot(s);
   }
 
@@ -324,6 +372,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.over) return;
     this.over = true;
     this.refreshUI();
+    if (this.rank) return this.finishRank(win, reason);
     const save = loadSave();
     const reward = win ? this.stageDef.reward : Math.floor(this.stageDef.reward * 0.2);
     save.coins += reward;
@@ -348,5 +397,42 @@ export class BattleScene extends Phaser.Scene {
     }
     button(this, W / 2 - 140, 520, 240, 76, 'もう一度', () => this.scene.restart({ stage: this.stageIndex, team: this.team })).setDepth(D);
     button(this, W / 2 + 140, 520, 240, 76, 'ステージ選択', () => this.scene.start('menu'), { size: 24 }).setDepth(D);
+  }
+
+  finishRank(win, reason) {
+    const save = loadSave();
+    const r = save.rank;
+    const before = r.rating;
+    const beforeTier = tierOf(before);
+    const delta = ratingDelta(before, this.rank.rating, win);
+    r.rating += delta;
+    r.best = Math.max(r.best, r.rating);
+    if (win) r.wins++;
+    else r.losses++;
+    const reward = win ? 30 : 5;
+    save.coins += reward;
+    writeSave(save);
+    sendPlayer(r, save.team); // サーバーがあれば成績と防衛編成を送る
+    const tier = tierOf(r.rating);
+
+    const D = 500;
+    this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.55).setDepth(D).setInteractive();
+    const box = this.add.graphics().setDepth(D);
+    box.fillStyle(0x3a2416, 1).fillRoundedRect(W / 2 - 304, 124, 608, 482, 24);
+    box.fillStyle(0xfff4dc, 1).fillRoundedRect(W / 2 - 300, 128, 600, 474, 22);
+    text(this, W / 2, 195, win ? '勝利！' : '敗北…', 72, win ? '#d9412b' : '#4a4a6a', { fontStyle: 'bold' }).setOrigin(0.5).setDepth(D);
+    text(this, W / 2, 255, `vs ${this.rank.name}　${reason}`, 22).setOrigin(0.5).setDepth(D);
+    const sign = delta >= 0 ? '+' : '';
+    text(this, W / 2, 310, `レート ${before} → ${r.rating}（${sign}${delta}）`, 30, delta >= 0 ? '#d9412b' : '#4a4a6a').setOrigin(0.5).setDepth(D);
+    text(this, W / 2, 360, tier.name, 40, tier.color, { fontStyle: 'bold', stroke: '#3a2416', strokeThickness: 4 }).setOrigin(0.5).setDepth(D);
+    if (tier !== beforeTier) {
+      const up = tier.min > beforeTier.min;
+      const t = text(this, W / 2, 412, up ? `ランクアップ！ ${beforeTier.name} → ${tier.name}` : `ランクダウン… ${beforeTier.name} → ${tier.name}`, 26, up ? '#d9412b' : '#4a4a6a', { fontStyle: 'bold' }).setOrigin(0.5).setDepth(D);
+      if (up) this.tweens.add({ targets: t, scale: 1.1, duration: 400, yoyo: true, repeat: -1 });
+    } else {
+      text(this, W / 2, 412, `小判 +${reward}`, 24).setOrigin(0.5).setDepth(D);
+    }
+    button(this, W / 2 - 140, 520, 240, 76, 'ランク戦へ', () => this.scene.start('rank')).setDepth(D);
+    button(this, W / 2 + 140, 520, 240, 76, 'メニュー', () => this.scene.start('menu')).setDepth(D);
   }
 }

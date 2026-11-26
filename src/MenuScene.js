@@ -2,6 +2,7 @@ import { W, STAGES, stageBg } from './backgrounds.js';
 import { UNITS, BATTLE_STAGES, TITLE, SUBTITLE, SHOP_PRICES } from './data.js';
 import { loadSave, writeSave, addUnit, exportCode, importCode, resetSave } from './save.js';
 import { text, button, INK } from './ui.js';
+import { RANK_UNLOCK_STAGE, tierOf } from './rank.js';
 
 const INK_HEX = 0x3a2416;
 
@@ -32,11 +33,18 @@ export class MenuScene extends Phaser.Scene {
     // 編成
     text(this, 24, 205, '編成（5体まで。タップで入れる／外す）', 24, INK);
     this.cells = Object.entries(UNITS).map(([key, def], i) => this.makeCell(key, def, 112 + (i % 6) * 211, 320 + Math.floor(i / 6) * 175));
-    this.toast = text(this, W / 2, 690, '', 24, '#ffffff', { stroke: INK, strokeThickness: 6 }).setOrigin(0.5);
+    this.toast = text(this, W / 2, 628, '', 24, '#ffffff', { stroke: INK, strokeThickness: 6 }).setOrigin(0.5);
     this.refresh();
 
     button(this, W - 110, 690, 190, 46, '背景を見る', () => this.scene.start('preview'), { size: 18 });
     button(this, 110, 690, 190, 46, '💾 セーブ', () => this.openSavePanel(), { size: 20 });
+    const rankOpen = this.save.cleared.includes(RANK_UNLOCK_STAGE);
+    const tier = tierOf(this.save.rank.rating);
+    const rankBtn = button(this, W / 2, 682, 360, 62, rankOpen ? `⚔ ランク戦（${tier.name}）` : '⚔ ランク戦 🔒', () => {
+      if (!rankOpen) return this.say(`「${BATTLE_STAGES[RANK_UNLOCK_STAGE].name}」をクリアすると遊べるよ`);
+      if (!this.save.team.length) return this.say('編成に1体以上入れてね');
+      this.scene.start('rank');
+    }, { size: 24, fill: rankOpen ? 0xffd36a : 0xd8cbb8 });
   }
 
   // ---------- セーブ画面 ----------

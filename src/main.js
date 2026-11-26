@@ -3,8 +3,9 @@ import { BootScene, TitleScene } from './TitleScene.js';
 import { MenuScene } from './MenuScene.js';
 import { BattleScene } from './BattleScene.js';
 import { PreviewScene } from './PreviewScene.js';
+import { RankScene } from './RankScene.js';
 
-new Phaser.Game({
+window.game = new Phaser.Game({
   type: Phaser.AUTO,
   width: W,
   height: H,
@@ -14,5 +15,5 @@ new Phaser.Game({
   input: { activePointers: 3 },
   // 確認用（?auto=1）はタイマーで動かす（ヘッドレスのブラウザでも時間が進むように）
   fps: { forceSetTimeOut: new URLSearchParams(location.search).get('auto') === '1', target: 60 },
-  scene: [BootScene, TitleScene, MenuScene, BattleScene, PreviewScene],
+  scene: [BootScene, TitleScene, MenuScene, BattleScene, RankScene, PreviewScene],
 });
