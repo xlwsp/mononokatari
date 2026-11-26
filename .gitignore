@@ -2,3 +2,4 @@
 server/rank_data.json
 server/*.tmp
 server/*.log
+__pycache__/
