@@ -1,8 +1,8 @@
 import { W, H, GROUND_Y, STAGES, drawStage, drawPlayerBase, drawEnemyBase } from './backgrounds.js';
 
 // 背景の確認用画面：ステージ切り替え・昼夜切り替え・自動切り替え（なめらかに変わる）
-const PLAYERS = ['hakua02', 'kodama02', 'suzune02', 'gekomaru02'];
-const ENEMIES = ['雑魚敵lv1_01', '雑魚敵02', 'lv1_03'];
+const PLAYERS = ['hakua', 'kodama', 'suzune', 'gekomaru'];
+const ENEMIES = ['zako_ghost', 'zako_lantern', 'oni_mask'];
 const AUTO_MS = 6000; // 確認用なので短め（本番は60秒前後）
 
 export class PreviewScene extends Phaser.Scene {
@@ -11,16 +11,6 @@ export class PreviewScene extends Phaser.Scene {
     this.stageIndex = 0;
     this.night = false;
     this.auto = false;
-  }
-
-  preload() {
-    for (const k of [...PLAYERS, ...ENEMIES]) this.load.image(k, `images/${encodeURIComponent(k)}.png`);
-    // 友達の背景が images/bg/ にあれば使う（無ければ図形の仮背景）
-    this.load.on('loaderror', () => {});
-    for (const s of STAGES) {
-      this.load.image(`${s.key}_day`, `images/bg/${s.key}_day.png`);
-      this.load.image(`${s.key}_night`, `images/bg/${s.key}_night.png`);
-    }
   }
 
   create() {
@@ -90,6 +80,7 @@ export class PreviewScene extends Phaser.Scene {
       if (this.auto) this.autoTimer = this.time.addEvent({ delay: AUTO_MS, loop: true, callback: () => this.setNight(!this.night) });
       this.refreshLabels();
     });
+    btn(940, 'もどる', () => this.scene.start('menu'));
     this.add.text(W - 20, 30, '仮の背景（図形）', { fontSize: '18px', color: '#ffffff', stroke: '#3a2416', strokeThickness: 4 }).setOrigin(1, 0);
   }
 

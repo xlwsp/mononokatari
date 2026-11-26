@@ -3,14 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>モノノカタリ ―百鬼夜行―</title>
+    <title>モノノカタリ -天下統一-</title>
     <style>
       html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
       #game { width: 100vw; height: 100vh; }
+      #rotate { display: none; position: fixed; inset: 0; background: #1b1530; color: #fff;
+        font: bold 24px 'Hiragino Maru Gothic ProN', sans-serif; align-items: center; justify-content: center; text-align: center; }
+      @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate">スマホを横にしてね 📱↻</div>
     <script src="lib/phaser.min.js"></script>
     <script type="module" src="src/main.js"></script>
   </body>
